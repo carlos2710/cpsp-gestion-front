@@ -1,0 +1,41 @@
+<div class="shell" [class.collapsed]="colapsado()">
+  <aside class="sidebar">
+    <a class="brand" routerLink="/app/dashboard" aria-label="Inicio CPSP">
+      <span class="brand-mark">C</span><span class="brand-copy"><strong>C.P.S.P.</strong><small>Gestión institucional</small></span>
+    </a>
+    <div class="side-caption">ESPACIO DE TRABAJO</div>
+    <nav class="menu" aria-label="Menú principal">
+      <a class="menu-link" routerLink="/app/dashboard" routerLinkActive="active"><span>▦</span><span class="menu-text">Dashboard</span></a>
+      @if (cargandoMenu()) { <div class="menu-message">Cargando menú…</div> }
+      @if (errorMenu()) { <div class="menu-message">No se pudo cargar el menú.</div> }
+      @for (grupo of gruposMenu(); track grupo.codigoModulo) {
+        <section class="menu-group" [class.expanded]="moduloExpandido(grupo.codigoModulo)">
+          <button class="menu-link menu-group-toggle" type="button"
+            (click)="alternarModulo(grupo.codigoModulo)"
+            [attr.aria-expanded]="moduloExpandido(grupo.codigoModulo)">
+            <span class="menu-module-icon">▤</span>
+            <span class="menu-text">{{ grupo.modulo }}</span>
+            <span class="menu-chevron" [class.rotated]="moduloExpandido(grupo.codigoModulo)">⌄</span>
+          </button>
+          @if (moduloExpandido(grupo.codigoModulo)) {
+            <div class="submenu-list">
+              @for (item of grupo.items; track item.codigoSubmenu) {
+                <a class="submenu-link" [routerLink]="rutaMenu(item)" routerLinkActive="active">{{ item.submenu || item.modulo }}</a>
+              }
+            </div>
+          }
+        </section>
+      }
+    </nav>
+    <div class="sidebar-bottom"><span class="status-dot"></span><span class="menu-text">{{ nombreLocal }}</span></div>
+  </aside>
+
+  <section class="workspace">
+    <header class="topbar">
+      <button class="icon-button menu-toggle" type="button" (click)="colapsado.set(!colapsado())" aria-label="Contraer menú">☰</button>
+      <div class="breadcrumbs"><span>{{ tituloPagina() === 'Registrar solicitud' ? 'Solicitudes' : 'Inicio' }}</span><b>/</b><strong>{{ tituloPagina() }}</strong></div>
+      <div class="top-actions"><span class="local-chip">{{ nombreLocal }}</span><button class="logout-button" type="button" (click)="cerrarSesion()" title="Cerrar sesión" aria-label="Cerrar sesión"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3"/><path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"/></svg><span>Cerrar sesión</span></button></div>
+    </header>
+    <main class="page-content"><router-outlet /></main>
+  </section>
+</div>

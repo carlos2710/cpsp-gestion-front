@@ -85,8 +85,7 @@ export class SeleccionComponent implements OnInit {
       'codEmpresa',
       String(localSeleccionado.codEmpresa)
     );
-
-    // Temporal: aquí conectaremos la navegación a la pantalla principal.
-    console.log('Local seleccionado:', localSeleccionado);
+    sessionStorage.setItem('descLocal', localSeleccionado.descLocal);
+    this.router.navigate(['/app/dashboard']);
   }
 }

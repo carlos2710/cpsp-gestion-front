@@ -49,6 +49,10 @@ export class LoginComponent {
           }
 
           sessionStorage.setItem('accessToken', response.accessToken);
+          sessionStorage.setItem(
+            'accessTokenExpiresAt',
+            String(Date.now() + response.expiresIn * 1000)
+          );
 
           sessionStorage.setItem(
             'codLocal',

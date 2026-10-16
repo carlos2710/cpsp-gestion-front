@@ -1,0 +1,29 @@
+<section class="dashboard-heading">
+  <div><p class="eyebrow">RESUMEN DE GESTIÓN</p><h1>Dashboard</h1><p class="subheading">Indicadores para {{ nombreLocal }}</p></div>
+  <span class="period-chip">Vista del local</span>
+</section>
+
+@if (cargando()) { <div class="notice">Cargando resumen del dashboard…</div> }
+@if (backendPendiente) { <div class="notice"><strong>Dashboard preparado para conectarse</strong><span>Los indicadores se habilitarán cuando el backend exponga el resumen por perfil, empresa y local.</span></div> }
+@if (error()) { <div class="notice notice-error"><strong>Resumen aún no disponible</strong><span>El contexto de sesión no está completo o el endpoint del dashboard todavía no está conectado.</span></div> }
+
+<section class="metric-grid" aria-label="Indicadores principales">
+  @for (item of tarjetas(); track item.clave) {
+    <article class="metric-card"><div class="metric-top"><span class="metric-icon">{{ item.icono }}</span><span class="metric-context">Según perfil y local</span></div><h2>{{ item.titulo }}</h2><strong class="metric-value">{{ item.valor ?? '—' }}</strong><p>{{ item.valor === null ? 'Pendiente de datos del backend' : 'Datos del periodo actual' }}</p></article>
+  }
+</section>
+
+<section class="panel-grid">
+  <article class="panel chart-panel"><div class="panel-heading"><div><h2>Solicitudes por estado</h2><p>Distribución en el local seleccionado</p></div></div>
+    @if ((resumen()?.solicitudesPorEstado?.length ?? 0) > 0) {
+      <div class="bars">@for (serie of resumen()!.solicitudesPorEstado; track serie.etiqueta) {<div class="bar-row"><span>{{ serie.etiqueta }}</span><div class="bar-track"><i [style.width.%]="porcentajeBarra(serie.cantidad)"></i></div><b>{{ serie.cantidad }}</b></div>}</div>
+    } @else { <div class="empty-chart"><span>▥</span><strong>El gráfico aparecerá cuando el backend envíe los datos.</strong><small>Contrato esperado: solicitudesPorEstado</small></div> }
+  </article>
+
+  <article class="panel recent-panel"><div class="panel-heading"><div><h2>Solicitudes recientes</h2><p>Actividad reciente del local</p></div></div>
+    @if ((resumen()?.solicitudesRecientes?.length ?? 0) > 0) {
+      <div class="recent-list">@for (item of resumen()!.solicitudesRecientes; track item.id) {<div class="recent-row"><div><strong>{{ item.nombre }}</strong><small>{{ item.fecha }}</small></div><span class="badge">{{ item.estado }}</span></div>}</div>
+    } @else { <div class="empty-list">La actividad reciente se mostrará aquí cuando exista información disponible.</div> }
+  </article>
+</section>
+<p class="updated" *ngIf="resumen()?.actualizadoEn">Actualizado: {{ resumen()?.actualizadoEn | date:'short' }}</p>
