@@ -1,0 +1,42 @@
+
+<div class="seleccion-page">
+  <section class="login-card">
+    <div class="seleccion-header">
+      <h1>Seleccionar local</h1>
+      <p>Seleccione la sede a la que desea ingresar</p>
+    </div>
+
+    <form [formGroup]="formulario" (ngSubmit)="continuar()">
+      <label for="codLocal">Local / Sede</label>
+
+      <select id="codLocal" formControlName="codLocal">
+        <option value="">Seleccione un local...</option>
+
+        @for (local of locales(); track local.codLocal) {
+          <option [value]="local.codLocal">
+            {{ local.descLocal }}
+          </option>
+        }
+      </select>
+
+      @if (
+        formulario.controls.codLocal.invalid &&
+        formulario.controls.codLocal.touched
+      ) {
+        <small class="error-message">
+          Debe seleccionar un local.
+        </small>
+      }
+
+      @if (error()) {
+        <p class="error-message">{{ error() }}</p>
+      }
+
+      <button
+        type="submit"
+        [disabled]="cargando() || locales().length === 0">
+        {{ cargando() ? 'Cargando locales...' : 'Continuar' }}
+      </button>
+    </form>
+  </section>
+</div>
