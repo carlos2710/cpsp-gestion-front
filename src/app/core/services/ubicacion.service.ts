@@ -34,6 +34,10 @@ export class UbicacionService {
     return this.http.get<Universidad[]>(`${environment.apiUrl}universidades`, { headers: this.authHeaders() });
   }
 
+  registrarUniversidad(nombre: string): Observable<void> {
+    return this.http.post<void>(`${environment.apiUrl}universidades`, { nombre }, { headers: this.authHeaders() });
+  }
+
   private authHeaders(): HttpHeaders {
     const token = typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem('accessToken');
     return new HttpHeaders(token ? { Authorization: `Bearer ${token}` } : {});

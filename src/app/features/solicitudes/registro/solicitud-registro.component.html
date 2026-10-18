@@ -24,7 +24,7 @@
       </div>
       <div class="field-grid three personal-grid" formGroupName="general">
         <label>Tipo de documento <span class="required">*</span><select formControlName="codTipoDocumento" (change)="actualizarValidacionDocumento()"><option value="">Seleccionar…</option><option value="1">DNI</option><option value="2">Carnet de extranjería</option><option value="3">RUC</option><option value="4">Pasaporte</option></select></label>
-        <label>Número de documento <span class="required">*</span><input type="text" inputmode="numeric" pattern="[0-9]*" formControlName="numeroDocumento" [maxlength]="longitudDocumento()" (input)="filtrarDigitos($event, 'numeroDocumento')" placeholder="{{ longitudDocumento() }} dígitos"></label>
+        <label>Número de documento <span class="required">*</span><input type="text" inputmode="numeric" pattern="[0-9]*" formControlName="numeroDocumento" [maxlength]="longitudDocumento()" (input)="filtrarDigitos($event, 'numeroDocumento')" (blur)="consultarDniSiCorresponde()" placeholder="{{ longitudDocumento() }} dígitos">@if (estadoReniec()) {<small class="reniec-status" [class.loading]="consultandoReniec()" role="status">{{ estadoReniec() }}</small>}</label>
         <label>Apellido paterno <span class="required">*</span><input formControlName="apellidoP" (input)="forzarMayusculas($event, 'apellidoP')" placeholder="Apellido paterno" autocomplete="family-name"></label>
         <label>Apellido materno<input formControlName="apellidoM" (input)="forzarMayusculas($event, 'apellidoM')" placeholder="Apellido materno"></label>
         <label>Primer nombre <span class="required">*</span><input formControlName="nombre1" (input)="forzarMayusculas($event, 'nombre1')" placeholder="Primer nombre" autocomplete="given-name"></label>
@@ -33,8 +33,8 @@
         <label>Sexo <strong class="required" aria-hidden="true">*</strong><select formControlName="sexo"><option value="">Seleccionar…</option><option>Femenino</option><option>Masculino</option></select></label>
         <label>Nacionalidad<select formControlName="nacionalidad"><option>Peruana</option><option>Extranjera</option></select></label>
         <label>Departamento<select formControlName="codDepartamento" (change)="cargarProvincias()"><option value="">{{ cargandoDepartamentos() ? 'Cargando…' : 'Seleccionar…' }}</option>@for (departamento of departamentos(); track departamento.codigo) {<option [value]="departamento.codigo">{{ departamento.descripcion }}</option>}</select></label>
-        <label>Provincia<select formControlName="codProvincia" (change)="cargarDistritos()"><option value="">{{ cargandoProvincias() ? 'Cargando…' : 'Seleccionar…' }}</option>@for (provincia of provincias(); track provincia.codigo) {<option [value]="provincia.codigo">{{ provincia.descripcion }}</option>}</select></label>
-        <label>Distrito<select formControlName="codDistrito"><option value="">{{ cargandoDistritos() ? 'Cargando…' : 'Seleccionar…' }}</option>@for (distrito of distritos(); track distrito.codigo) {<option [value]="distrito.codigo">{{ distrito.descripcion }}</option>}</select></label>
+        <label>Provincia<select formControlName="codProvincia" (change)="cargarDistritos()"><option value="">{{ cargandoProvincias() ? 'Cargando…' : formulario.controls.general.controls.codDepartamento.value ? (provincias().length ? 'Seleccionar…' : 'Sin provincias disponibles') : 'Selecciona un departamento' }}</option>@for (provincia of provincias(); track provincia.codigo) {<option [value]="provincia.codigo">{{ provincia.descripcion }}</option>}</select></label>
+        <label>Distrito<select formControlName="codDistrito"><option value="">{{ cargandoDistritos() ? 'Cargando…' : formulario.controls.general.controls.codProvincia.value ? (distritos().length ? 'Seleccionar…' : 'Sin distritos disponibles') : 'Selecciona una provincia' }}</option>@for (distrito of distritos(); track distrito.codigo) {<option [value]="distrito.codigo">{{ distrito.descripcion }}</option>}</select></label>
         <label class="span-two">Domicilio <span class="required">*</span><input formControlName="domicilio" placeholder="Av., calle, jirón o pasaje"></label>
         <label>Número<input formControlName="numero"></label>
         <label>Urbanización<input formControlName="urbanizacion"></label>
@@ -69,8 +69,29 @@
     <section class="form-panel">
       <div class="section-heading"><span class="section-number">02</span><div><h2>Datos académicos</h2><p>Formación profesional, estudios y especializaciones.</p></div></div>
       <div class="field-grid three" formGroupName="datosAcademicos">
-        <div class="university-field"><label for="universidadBusqueda">Universidad de egreso <span class="required">*</span></label><input type="hidden" formControlName="codUniversidad"><input id="universidadBusqueda" type="search" [value]="textoUniversidad()" (focus)="listaUniversidadesAbierta.set(true)" (blur)="cerrarListaUniversidades()" (input)="buscarUniversidad($event)" [placeholder]="buscandoUniversidad() ? 'Cargando universidades…' : 'Escribe para buscar'" autocomplete="off"><small>{{ errorUniversidades() || 'Escribe el nombre y selecciona una universidad.' }}</small>@if (formulario.controls.datosAcademicos.controls.codUniversidad.touched && !formulario.controls.datosAcademicos.controls.codUniversidad.value) {<small class="field-error">Selecciona una universidad de la lista.</small>}@if (listaUniversidadesAbierta()) {<div class="university-options" role="listbox">@for (universidad of universidadesFiltradas(); track universidad.codigo) {<button type="button" role="option" class="university-option" (mousedown)="$event.preventDefault()" (click)="seleccionarUniversidad(universidad)">{{ universidad.nombre }}</button>}@if (!universidadesFiltradas().length) {<span class="university-empty">{{ buscandoUniversidad() ? 'Cargando…' : 'No se encontraron universidades.' }}</span>}</div>}</div>
-        <label>Título obtenido <span class="required">*</span><input formControlName="tituloObtenido" placeholder="Título profesional"></label>
+        <div class="university-field">
+          <label for="universidadBusqueda">Universidad de egreso <span class="required">*</span></label>
+          <input type="hidden" formControlName="codUniversidad">
+          <input id="universidadBusqueda" type="search" [value]="textoUniversidad()" (focus)="listaUniversidadesAbierta.set(true)" (blur)="cerrarListaUniversidades()" (input)="buscarUniversidad($event)" [placeholder]="buscandoUniversidad() ? 'Cargando universidades…' : 'Escribe para buscar'" autocomplete="off">
+          <small>{{ errorUniversidades() || 'Escribe el nombre y selecciona una universidad.' }}</small>
+          @if (formulario.controls.datosAcademicos.controls.codUniversidad.touched && !formulario.controls.datosAcademicos.controls.codUniversidad.value) {
+            <small class="field-error">Selecciona una universidad de la lista.</small>
+          }
+          @if (listaUniversidadesAbierta()) {
+            <div class="university-options" role="listbox">
+              @for (universidad of universidadesFiltradas(); track universidad.codigo) {
+                <button type="button" role="option" class="university-option" (mousedown)="$event.preventDefault()" (click)="seleccionarUniversidad(universidad)">{{ universidad.nombre }}</button>
+              }
+              @if (!universidadesFiltradas().length) {
+                <span class="university-empty">{{ buscandoUniversidad() ? 'Cargando…' : 'No se encontraron universidades.' }}</span>
+                @if (textoUniversidad().trim() && !buscandoUniversidad()) {
+                  <button type="button" class="university-create" [disabled]="registrandoUniversidad()" (mousedown)="$event.preventDefault()" (click)="registrarUniversidad()">{{ registrandoUniversidad() ? 'Registrando…' : 'Registrar universidad “' + textoUniversidad().trim() + '”' }}</button>
+                }
+              }
+            </div>
+          }
+        </div>
+        <label>Título obtenido <span class="required">*</span><input formControlName="tituloObtenido" (input)="forzarTituloMayusculas($event)" placeholder="Título profesional"></label>
         <label>Forma de obtención<select formControlName="codObtencion"><option value="">Seleccionar…</option><option>Tesis</option><option>Caso clínico</option><option>Examen de grado</option><option>Otro</option></select></label>
         <label>Fecha de obtención<input type="date" formControlName="fechaObtencion" [max]="fechaHoy"></label>
         <label>Área de especialización<select formControlName="areaEspecializacion"><option value="">Seleccionar…</option><option>Clínica</option><option>Educacional</option><option>Social</option><option>Organizacional</option><option>Comunitaria</option><option>Deportiva</option><option>Jurídica</option><option>Otra</option></select></label>
@@ -97,7 +118,7 @@
     <section class="form-panel">
       <div class="section-heading"><span class="section-number">03</span><div><h2>Actividad profesional</h2><p>Registra los centros de trabajo y actividades particulares.</p></div></div>
       <div formGroupName="actividadProfesional">
-        <div class="exercise-row"><label class="switch-field"><span><strong>¿Ejerce actualmente?</strong><small>Indica si ejerce actualmente la profesión.</small></span><select formControlName="codEjerce"><option value="true">Sí</option><option value="false">No</option></select></label></div>
+        <div class="exercise-row"><label class="switch-field"><span><strong>¿Ejerce actualmente?</strong><small>Indica si ejerce actualmente la profesión.</small></span><select class="form-select" formControlName="codEjerce"><option value="true">Sí</option><option value="false">No</option></select></label></div>
         @if (ejerceActualmente()) {
           <div class="field-grid two professional-top">
             <label>Institución principal<input formControlName="institucionTrabajo" placeholder="Institución donde trabaja"></label>
@@ -106,8 +127,8 @@
             <label>Otra actividad particular<input formControlName="actividadParticular2" placeholder="Otra actividad"></label>
           </div>
           <div class="work-details">
-            <article class="subsection"><h3>Institución donde trabaja</h3><div class="field-grid two"><label>Institución<input placeholder="Nombre de la institución"></label><label>Sector<select><option value="">Seleccionar</option><option>Público</option><option>Privado</option><option>Otro</option></select></label><label>Cargo que desempeña<input placeholder="Cargo"></label><label>Jornada<select><option value="">Seleccionar</option><option>Parcial</option><option>Completo</option></select></label><label>Tiempo de servicio<input placeholder="Tiempo de servicio"></label><label>Dirección<input placeholder="Dirección"></label><label>Teléfono<input placeholder="Teléfono"></label><label>Nota<input placeholder="Nota"></label></div></article>
-            <article class="subsection"><h3>Institución adicional</h3><div class="field-grid two"><label>Institución<input placeholder="Nombre de la institución"></label><label>Sector<select><option value="">Seleccionar</option><option>Público</option><option>Privado</option><option>Otro</option></select></label><label>Cargo que desempeña<input placeholder="Cargo"></label><label>Jornada<select><option value="">Seleccionar</option><option>Parcial</option><option>Completo</option></select></label><label>Tiempo de servicio<input placeholder="Tiempo de servicio"></label><label>Dirección<input placeholder="Dirección"></label><label>Teléfono<input placeholder="Teléfono"></label><label>Nota<input placeholder="Nota"></label></div></article>
+            <article class="subsection" formGroupName="trabajoPrincipal"><h3>Institución donde trabaja</h3><div class="field-grid two"><label>Institución<input formControlName="nombreInstitucion" placeholder="Nombre de la institución"></label><label>Sector<select formControlName="sector"><option value="">Seleccionar</option><option>Público</option><option>Privado</option><option>Otro</option></select></label><label>Cargo que desempeña<input formControlName="cargo" placeholder="Cargo"></label><label>Jornada<select formControlName="jornada"><option value="">Seleccionar</option><option>Parcial</option><option>Completo</option></select></label><label>Tiempo de servicio<input formControlName="tiempoServicio" placeholder="Tiempo de servicio"></label><label>Dirección<input formControlName="direccion" placeholder="Dirección"></label><label>Teléfono<input formControlName="telefono" placeholder="Teléfono"></label><label>Nota<input formControlName="nota" placeholder="Nota"></label></div></article>
+            <article class="subsection" formGroupName="trabajoAdicional"><h3>Institución adicional</h3><div class="field-grid two"><label>Institución<input formControlName="nombreInstitucion" placeholder="Nombre de la institución"></label><label>Sector<select formControlName="sector"><option value="">Seleccionar</option><option>Público</option><option>Privado</option><option>Otro</option></select></label><label>Cargo que desempeña<input formControlName="cargo" placeholder="Cargo"></label><label>Jornada<select formControlName="jornada"><option value="">Seleccionar</option><option>Parcial</option><option>Completo</option></select></label><label>Tiempo de servicio<input formControlName="tiempoServicio" placeholder="Tiempo de servicio"></label><label>Dirección<input formControlName="direccion" placeholder="Dirección"></label><label>Teléfono<input formControlName="telefono" placeholder="Teléfono"></label><label>Nota<input formControlName="nota" placeholder="Nota"></label></div></article>
           </div>
         }
       </div>
@@ -142,9 +163,17 @@
   @if (paso() === 5) {
     <section class="form-panel">
       <div class="section-heading"><span class="section-number">06</span><div><h2>Comprobantes y documentos</h2><p>Adjunta imágenes de pago y documentos de sustento.</p></div></div>
-      <div class="payment-list">
-        @for (pago of comprobantes; track pago.id) {
-          <article class="payment-card"><div class="payment-title"><div><h3>{{ pago.nombre }}</h3><span>{{ pago.monto }}</span></div><span class="file-mark">↑</span></div><label class="file-field">Comprobante de pago<input type="file" accept="image/jpeg,image/png" (change)="alElegirArchivo($event,pago.id)"><small>{{ archivos()[pago.id] || 'Selecciona una imagen JPG o PNG' }}</small></label>@if (previsualizaciones()[pago.id]) {<img class="image-preview payment-preview" [src]="previsualizaciones()[pago.id]" [alt]="'Vista previa de ' + pago.nombre">}<div class="field-grid two"><label>Número de operación<input placeholder="Número de operación"></label><label>Fecha del voucher<input type="date"></label></div></article>
+      <div class="payment-list" formArrayName="comprobantesPago">
+        @for (pago of comprobantes; track pago.id; let indice = $index) {
+          <article class="payment-card" [formGroupName]="indice">
+            <div class="payment-title"><div><h3>{{ pago.nombre }}</h3><span>{{ pago.monto }}</span></div><span class="file-mark">↑</span></div>
+            <label class="file-field">Comprobante de pago<input type="file" accept="image/jpeg,image/png" (change)="alElegirArchivo($event,pago.id)"><small>{{ archivos()[pago.id] || 'Selecciona una imagen JPG o PNG' }}</small></label>
+            @if (previsualizaciones()[pago.id]) {<img class="image-preview payment-preview" [src]="previsualizaciones()[pago.id]" [alt]="'Vista previa de ' + pago.nombre">}
+            <div class="field-grid two">
+              <label>Número de operación<input formControlName="numeroOperacion" placeholder="Número de operación">@if (numeroOperacionDuplicada(indice)) {<small class="field-error">Este número de operación ya está registrado en otro comprobante.</small>}</label>
+              <label>Fecha del voucher<input type="date" formControlName="fechaVoucher" [max]="fechaHoy">@if (formulario.controls.comprobantesPago.at(indice).controls.fechaVoucher.touched && formulario.controls.comprobantesPago.at(indice).controls.fechaVoucher.hasError('fechaFutura')) {<small class="field-error">La fecha del voucher no puede ser posterior a hoy.</small>}</label>
+            </div>
+          </article>
         }
       </div>
       <div class="document-grid">
