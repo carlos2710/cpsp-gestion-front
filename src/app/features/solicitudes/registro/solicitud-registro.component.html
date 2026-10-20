@@ -3,6 +3,16 @@
   <div class="api-status"><span></span>Formulario en preparación</div>
 </section>
 
+@if (consultandoReniec()) {
+  <div class="reniec-overlay" role="alertdialog" aria-modal="true" aria-label="Consulta de identidad en curso">
+    <div class="reniec-loader-card">
+      <span class="reniec-spinner" aria-hidden="true"></span>
+      <strong>Consultando RENIEC</strong>
+      <p>Estamos verificando el documento. Espera un momento…</p>
+    </div>
+  </div>
+}
+
 <div class="context-strip"><span class="context-icon">⌂</span><div><small>Local de atención</small><strong>{{ nombreLocal }}</strong></div><div class="context-divider"></div><div><small>Fecha de recepción</small><strong>{{ formulario.controls.datosSolicitud.controls.fechaRecepcion.value | date:'dd/MM/yyyy' }}</strong></div></div>
 
 <nav class="wizard" aria-label="Pasos de la solicitud">
@@ -47,7 +57,7 @@
         <label>Estado civil <strong class="required" aria-hidden="true">*</strong><select formControlName="codEstadoCivil"><option value="">Seleccionar…</option><option>Soltero(a)</option><option>Casado(a)</option><option>Viudo(a)</option><option>Conviviente</option><option>Divorciado(a)</option><option>Separado(a)</option></select></label>
         <label>Grupo sanguíneo <strong class="required" aria-hidden="true">*</strong><select formControlName="codGrupoSang"><option value="">Seleccionar…</option><option>A-</option><option>A+</option><option>AB-</option><option>AB+</option><option>B-</option><option>B+</option><option>O-</option><option>O+</option></select></label>
         <div class="grid-subheading span-all"><h3>Cónyuge</h3></div>
-        <label>Nombre del cónyuge<input formControlName="nombreConyugue" placeholder="Nombre completo"></label>
+        <label>Nombre del cónyuge<input formControlName="nombreConyugue" (input)="forzarMayusculasConyugue($event)" placeholder="Nombre completo"></label>
         <label>Profesión u ocupación<input formControlName="profesionConyugue" placeholder="Profesión u ocupación"></label>
       </div>
       @if (errorUbicaciones()) { <p class="location-error" role="alert">{{ errorUbicaciones() }}</p> }
@@ -118,7 +128,7 @@
     <section class="form-panel">
       <div class="section-heading"><span class="section-number">03</span><div><h2>Actividad profesional</h2><p>Registra los centros de trabajo y actividades particulares.</p></div></div>
       <div formGroupName="actividadProfesional">
-        <div class="exercise-row"><label class="switch-field"><span><strong>¿Ejerce actualmente?</strong><small>Indica si ejerce actualmente la profesión.</small></span><select class="form-select" formControlName="codEjerce"><option value="true">Sí</option><option value="false">No</option></select></label></div>
+        <div class="exercise-row"><div class="switch-field"><span><strong>¿Ejerce actualmente?</strong><small>Indica si ejerce actualmente la profesión.</small></span><label class="exercise-switch"><input type="checkbox" role="switch" [checked]="ejerceActualmente()" (change)="cambiarEjerceActualmente($event)"><span class="switch-track" aria-hidden="true"></span><span class="switch-value">{{ ejerceActualmente() ? 'Sí' : 'No' }}</span></label></div></div>
         @if (ejerceActualmente()) {
           <div class="field-grid two professional-top">
             <label>Institución principal<input formControlName="institucionTrabajo" placeholder="Institución donde trabaja"></label>
@@ -150,12 +160,29 @@
     <section class="form-panel">
       <div class="section-heading"><span class="section-number">05</span><div><h2>Necesidad de capacitación y bienestar</h2><p>Indica temas de interés y propuestas para el colegio.</p></div></div>
       <div class="field-grid two" [formGroup]="bienestar">
-        <label>Área de capacitación <small>Mantén Ctrl (Windows) o ⌘ (Mac) para elegir varias.</small><select class="multiple-select" multiple formControlName="area" (change)="alCambiarAreasCapacitacion()"><option>Clínica</option><option>Educacional</option><option>Social</option><option>Organizacional</option><option>Comunitaria</option><option>Deportiva</option><option>Jurídica</option><option>Otra</option></select></label>
+        <fieldset class="area-checks">
+          <legend>Área de capacitación</legend>
+          <small>Selecciona una o varias áreas.</small>
+          <div class="area-check-grid">
+            @for (area of areasCapacitacion; track area.codigo) {
+              <label class="area-check-option"><input type="checkbox" [checked]="bienestar.controls.area.value.includes(area.descripcion)" (change)="alternarAreaCapacitacion(area.descripcion, $event)"><span>{{ area.descripcion }}</span></label>
+            }
+          </div>
+        </fieldset>
         @if (areaCapacitacionIncluyeOtra()) {<label>Otra área<input formControlName="otro" placeholder="Especificar área"></label>}
         <label>Tema de interés 1<input formControlName="tema1" placeholder="Tema de capacitación"></label>
         <label>Tema de interés 2<input formControlName="tema2" placeholder="Tema de capacitación"></label>
         <label>Tema de interés 3<input formControlName="tema3" placeholder="Tema de capacitación"></label>
-        <label class="span-two">¿Qué aspectos de bienestar personal, familiar y social desearías que el colegio promoviera?<textarea formControlName="aspectos" rows="4" placeholder="Cuéntanos tus propuestas"></textarea></label>
+        <fieldset class="area-checks wellbeing-checks span-two">
+          <legend>¿Qué aspectos de bienestar personal, familiar y social desearías que el colegio promoviera?</legend>
+          <small>Selecciona uno o varios aspectos.</small>
+          <div class="area-check-grid">
+            @for (aspecto of opcionesBienestar; track aspecto.valor) {
+              <label class="area-check-option"><input type="checkbox" [checked]="bienestar.controls.aspectos.value.includes(aspecto.valor)" (change)="alternarAspectoBienestar(aspecto.valor, $event)"><span>{{ aspecto.descripcion }}</span></label>
+            }
+          </div>
+        </fieldset>
+        @if (bienestarIncluyeOtros()) {<label>Especifica otros aspectos<input formControlName="otrosAspectos" placeholder="Describe tu respuesta"></label>}
       </div>
     </section>
   }
@@ -184,5 +211,5 @@
     </section>
   }
 
-  <div class="form-footer"><p class="form-message" role="status">{{ mensaje() }}</p><div class="actions"><button type="button" class="secondary-button" (click)="cancelar()">Limpiar formulario</button>@if (paso() > 0) {<button type="button" class="secondary-button" (click)="anterior()">← Anterior</button>}@if (paso() < pasos.length - 1) {<button type="button" class="primary-button" (click)="siguiente()">Siguiente <span>→</span></button>} @else {<button type="submit" class="primary-button">Registrar solicitud <span>✓</span></button>}</div></div>
+  <div class="form-footer"><p class="form-message" role="status">{{ mensaje() }}</p><div class="actions"><button type="button" class="secondary-button" (click)="cancelar()">Limpiar formulario</button>@if (paso() > 0) {<button type="button" class="secondary-button" (click)="anterior()">← Anterior</button>}@if (paso() < pasos.length - 1) {<button type="button" class="primary-button" (click)="siguiente()">Siguiente <span>→</span></button>} @else {<button type="submit" class="primary-button" [disabled]="consultandoReniec()">Registrar solicitud <span>✓</span></button>}</div></div>
 </form>

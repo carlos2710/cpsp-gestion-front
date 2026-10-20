@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { Ubicacion, UbicacionService, Universidad } from '../../../core/services/ubicacion.service';
 import { ReniecService } from '../../../core/services/reniec.service';
+import { UppercaseTextDirective } from '../../../shared/directives/uppercase-text.directive';
 
 interface OpcionFormulario {
   codigo: string;
@@ -97,7 +98,7 @@ function correoConDominio(control: AbstractControl): ValidationErrors | null {
 @Component({
   selector: 'app-solicitud-registro',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, UppercaseTextDirective],
   templateUrl: './solicitud-registro.component.html',
   styleUrl: './solicitud-registro.component.scss'
 })
@@ -143,6 +144,14 @@ export class SolicitudRegistroComponent implements OnDestroy {
   readonly payloadPreparado = signal<Record<string, unknown> | null>(null);
   readonly seccionesAcademicas = signal({ revalidacion: false, maestria: false, doctorado: false, idioma: false, otrosEstudios: false });
   readonly pasos = ['Datos generales', 'Académico', 'Profesional', 'Otras actividades', 'Necesidad y bienestar', 'Comprobantes'];
+  readonly areasCapacitacion = catalogosFormulario.areaCapacitacion;
+  readonly opcionesBienestar = [
+    { valor: 'ATENCIÓN MÉDICA', descripcion: 'Atención médica' },
+    { valor: 'SEGUROS', descripcion: 'Seguros' },
+    { valor: 'COOPERATIVAS', descripcion: 'Cooperativas' },
+    { valor: 'RECREACIÓN', descripcion: 'Recreación' },
+    { valor: 'OTROS', descripcion: 'Otros' }
+  ];
   readonly comprobantes = [
     { id: 'cdn', nombre: 'Derecho de colegiatura CDN', monto: 'S/ 432.60' },
     { id: 'fondo', nombre: 'Fondo mutual', monto: 'S/ 30.90' },
@@ -208,7 +217,8 @@ export class SolicitudRegistroComponent implements OnDestroy {
   });
 
   readonly bienestar = this.fb.nonNullable.group({
-    area: this.fb.nonNullable.control<string[]>([]), tema1: [''], tema2: [''], tema3: [''], aspectos: [''], otro: ['']
+    area: this.fb.nonNullable.control<string[]>([]), tema1: [''], tema2: [''], tema3: [''],
+    aspectos: this.fb.nonNullable.control<string[]>([]), otrosAspectos: [''], otro: ['']
   });
 
   constructor() {
@@ -336,9 +346,9 @@ export class SolicitudRegistroComponent implements OnDestroy {
           this.estadoReniec.set('');
           return;
         }
-        this.consultandoReniec.set(false);
         const datos = respuesta?.data;
         if (!respuesta?.success || !datos) {
+          this.consultandoReniec.set(false);
           this.estadoReniec.set(respuesta?.message || 'No se encontraron datos para el DNI ingresado.');
           return;
         }
@@ -353,7 +363,7 @@ export class SolicitudRegistroComponent implements OnDestroy {
           domicilio: String(datos.direccion || datos.direccion_completa || '').toLocaleUpperCase('es-PE')
         });
         this.ultimoDniConsultado = dni;
-        this.estadoReniec.set('Datos personales completados con RENIEC.');
+        this.aplicarUbicacionReniec(datos.departamento, datos.provincia, datos.distrito, solicitud);
       },
       error: () => {
         if (solicitud !== this.solicitudReniec) return;
@@ -361,6 +371,107 @@ export class SolicitudRegistroComponent implements OnDestroy {
         this.estadoReniec.set('No se pudo consultar RENIEC. Verifica el DNI e inténtalo nuevamente.');
       }
     });
+  }
+
+  private normalizarUbicacion(valor: string | null | undefined): string {
+    return String(valor ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().replace(/\s+/g, ' ').toLocaleUpperCase('es-PE');
+  }
+
+  private aplicarUbicacionReniec(departamentoReniec: string, provinciaReniec: string, distritoReniec: string, solicitud: number): void {
+    const general = this.formulario.controls.general;
+    const terminar = (ubicacionCompleta: boolean) => {
+      if (solicitud !== this.solicitudReniec) return;
+      this.consultandoReniec.set(false);
+      this.estadoReniec.set(ubicacionCompleta || !(departamentoReniec || provinciaReniec || distritoReniec)
+        ? 'Datos personales completados con RENIEC.'
+        : 'Datos personales completados. No se pudo asociar toda la ubicación de RENIEC.');
+    };
+    const seleccionarDepartamento = (departamentos: Ubicacion[]) => {
+      if (solicitud !== this.solicitudReniec) return;
+      const departamento = departamentos.find(item => this.normalizarUbicacion(item.descripcion) === this.normalizarUbicacion(departamentoReniec));
+      if (!departamento) {
+        terminar(false);
+        return;
+      }
+
+      this.departamentos.set(departamentos);
+      general.controls.codDepartamento.setValue(String(departamento.codigo));
+      general.controls.codProvincia.setValue('');
+      general.controls.codDistrito.setValue('');
+      general.controls.codProvincia.disable();
+      general.controls.codDistrito.disable();
+      this.provincias.set([]);
+      this.distritos.set([]);
+      this.cargandoProvincias.set(false);
+      this.cargandoDistritos.set(false);
+      this.errorUbicaciones.set('');
+      this.cargandoProvincias.set(true);
+      this.ubicacionService.listarProvincias(departamento.codigo).subscribe({
+        next: provincias => {
+          if (solicitud !== this.solicitudReniec) return;
+          this.provincias.set(provincias);
+          this.cargandoProvincias.set(false);
+          const provincia = provincias.find(item => this.normalizarUbicacion(item.descripcion) === this.normalizarUbicacion(provinciaReniec));
+          if (!provincia) {
+            terminar(false);
+            return;
+          }
+
+          general.controls.codProvincia.setValue(String(provincia.codigo));
+          general.controls.codProvincia.enable();
+          this.cargandoDistritos.set(true);
+          this.ubicacionService.listarDistritos(provincia.codigo).subscribe({
+            next: distritos => {
+              if (solicitud !== this.solicitudReniec) return;
+              this.distritos.set(distritos);
+              this.cargandoDistritos.set(false);
+              const distrito = distritos.find(item => this.normalizarUbicacion(item.descripcion) === this.normalizarUbicacion(distritoReniec));
+              if (!distrito) {
+                terminar(false);
+                return;
+              }
+              general.controls.codDistrito.setValue(String(distrito.codigo));
+              general.controls.codDistrito.enable();
+              terminar(true);
+            },
+            error: () => {
+              if (solicitud !== this.solicitudReniec) return;
+              this.cargandoDistritos.set(false);
+              this.errorUbicaciones.set('No se pudieron cargar los distritos para completar la ubicación de RENIEC.');
+              terminar(false);
+            }
+          });
+        },
+        error: () => {
+          if (solicitud !== this.solicitudReniec) return;
+          this.cargandoProvincias.set(false);
+          this.errorUbicaciones.set('No se pudieron cargar las provincias para completar la ubicación de RENIEC.');
+          terminar(false);
+        }
+      });
+    };
+
+    if (!departamentoReniec && !provinciaReniec && !distritoReniec) {
+      terminar(true);
+    } else if (this.departamentos().length) {
+      seleccionarDepartamento(this.departamentos());
+    } else {
+      this.cargandoDepartamentos.set(true);
+      this.ubicacionService.listarDepartamentos().subscribe({
+        next: departamentos => {
+          if (solicitud !== this.solicitudReniec) return;
+          this.departamentos.set(departamentos);
+          this.cargandoDepartamentos.set(false);
+          seleccionarDepartamento(departamentos);
+        },
+        error: () => {
+          if (solicitud !== this.solicitudReniec) return;
+          this.cargandoDepartamentos.set(false);
+          this.errorUbicaciones.set('No se pudieron cargar los departamentos para completar la ubicación de RENIEC.');
+          terminar(false);
+        }
+      });
+    }
   }
 
   longitudDocumento(): number {
@@ -384,6 +495,11 @@ export class SolicitudRegistroComponent implements OnDestroy {
     return this.formulario.controls.actividadProfesional.controls.codEjerce.value === 'true';
   }
 
+  cambiarEjerceActualmente(evento: Event): void {
+    const ejerce = (evento.target as HTMLInputElement).checked;
+    this.formulario.controls.actividadProfesional.controls.codEjerce.setValue(String(ejerce));
+  }
+
   alternarSeccionAcademica(seccion: 'revalidacion' | 'maestria' | 'doctorado' | 'idioma' | 'otrosEstudios'): void {
     this.seccionesAcademicas.update(actual => ({ ...actual, [seccion]: !actual[seccion] }));
   }
@@ -394,6 +510,38 @@ export class SolicitudRegistroComponent implements OnDestroy {
 
   alCambiarAreasCapacitacion(): void {
     if (!this.areaCapacitacionIncluyeOtra()) this.bienestar.controls.otro.setValue('');
+  }
+
+  alternarAreaCapacitacion(area: string, evento: Event): void {
+    const seleccionadas = this.bienestar.controls.area.value;
+    const marcada = (evento.target as HTMLInputElement).checked;
+    this.bienestar.controls.area.setValue(marcada
+      ? [...seleccionadas, area]
+      : seleccionadas.filter(valor => valor !== area));
+    this.alCambiarAreasCapacitacion();
+  }
+
+  bienestarIncluyeOtros(): boolean {
+    return this.bienestar.controls.aspectos.value.includes('OTROS');
+  }
+
+  alternarAspectoBienestar(aspecto: string, evento: Event): void {
+    const seleccionados = this.bienestar.controls.aspectos.value;
+    const marcado = (evento.target as HTMLInputElement).checked;
+    this.bienestar.controls.aspectos.setValue(marcado
+      ? [...seleccionados, aspecto]
+      : seleccionados.filter(valor => valor !== aspecto));
+    if (!this.bienestarIncluyeOtros()) this.bienestar.controls.otrosAspectos.setValue('');
+  }
+
+  forzarMayusculasConyugue(evento: Event): void {
+    const input = evento.target as HTMLInputElement;
+    const mayusculas = input.value.toLocaleUpperCase('es-PE');
+    if (input.value === mayusculas) return;
+    const posicion = input.selectionStart;
+    input.value = mayusculas;
+    this.formulario.controls.general.controls.nombreConyugue.setValue(mayusculas);
+    input.setSelectionRange(posicion, posicion);
   }
 
   private cargarDepartamentos(): void {
@@ -492,6 +640,7 @@ export class SolicitudRegistroComponent implements OnDestroy {
   }
 
   siguiente(): void {
+    if (this.consultandoReniec()) return;
     if (this.paso() === 0 && this.formulario.controls.general.invalid) {
       const general = this.formulario.controls.general;
       general.markAllAsTouched();
@@ -552,6 +701,17 @@ export class SolicitudRegistroComponent implements OnDestroy {
   }
 
   revisarRegistro(): void {
+    if (this.consultandoReniec()) return;
+    console.log('Valores ingresados en el formulario de solicitud:', {
+      formulario: this.formulario.getRawValue(),
+      otrasActividades: this.otrasActividades.getRawValue(),
+      bienestar: this.bienestar.getRawValue(),
+      archivos: Object.fromEntries(Object.entries(this.archivosSeleccionados()).map(([codigo, archivo]) => [codigo, {
+        nombre: archivo.name,
+        tipoMime: archivo.type,
+        tamanoBytes: archivo.size
+      }]))
+    });
     const pagos = this.formulario.controls.comprobantesPago;
     if (pagos.invalid) {
       pagos.markAllAsTouched();
@@ -691,7 +851,8 @@ export class SolicitudRegistroComponent implements OnDestroy {
         areas: areasCapacitacion,
         otraArea: this.bienestar.controls.otro.value,
         temasInteres: [this.bienestar.controls.tema1.value, this.bienestar.controls.tema2.value, this.bienestar.controls.tema3.value].filter(Boolean),
-        aspectosBienestar: this.bienestar.controls.aspectos.value
+        aspectosBienestar: this.bienestar.controls.aspectos.value,
+        otrosAspectosBienestar: this.bienestar.controls.otrosAspectos.value
       },
       comprobantes: this.comprobantes.map((comprobante, indice) => ({
         codigo: comprobante.id,

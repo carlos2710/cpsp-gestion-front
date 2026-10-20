@@ -33,7 +33,7 @@
   <section class="workspace">
     <header class="topbar">
       <button class="icon-button menu-toggle" type="button" (click)="colapsado.set(!colapsado())" aria-label="Contraer menú">☰</button>
-      <div class="breadcrumbs"><span>{{ tituloPagina() === 'Registrar solicitud' ? 'Solicitudes' : 'Inicio' }}</span><b>/</b><strong>{{ tituloPagina() }}</strong></div>
+      <div class="breadcrumbs"><span>{{ tituloPagina() === 'Registrar solicitud' ? 'Solicitudes' : tituloPagina() === 'Control de usuarios' ? 'Administración' : 'Inicio' }}</span><b>/</b><strong>{{ tituloPagina() }}</strong></div>
       <div class="top-actions"><span class="local-chip">{{ nombreLocal }}</span><button class="logout-button" type="button" (click)="cerrarSesion()" title="Cerrar sesión" aria-label="Cerrar sesión"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3"/><path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"/></svg><span>Cerrar sesión</span></button></div>
     </header>
     <main class="page-content"><router-outlet /></main>

@@ -1,0 +1,91 @@
+<section class="users-page">
+  <header class="page-heading">
+    <div>
+      <div class="breadcrumbs"><span>Administración</span><b>/</b><strong>Control de usuarios</strong></div>
+      <h1>Control de usuarios</h1>
+      <p>Consulta y administra los accesos de usuarios del sistema.</p>
+    </div>
+    <button class="create-button" type="button" (click)="abrirModal()"><span aria-hidden="true">＋</span> CREAR USUARIO</button>
+  </header>
+
+  @if (mensaje()) { <p class="feedback success" role="status">{{ mensaje() }}</p> }
+
+  <section class="table-card" aria-label="Listado de usuarios">
+    <div class="table-heading">
+      <div><h2>Usuarios registrados</h2><p>Mostrando {{ filas().length }} de un máximo de 10 registros de ejemplo.</p></div>
+      <span class="count-badge">{{ filas().length }} usuarios</span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>#</th><th>Usuario</th><th>Nombre completo</th><th>Perfil</th><th>Local</th><th>Estado</th></tr></thead>
+        <tbody>
+          @for (fila of filas(); track fila.id; let indice = $index) {
+            <tr>
+              <td class="row-number">{{ indice + 1 }}</td>
+              <td><span class="user-avatar">{{ fila.usuario.slice(0, 1).toUpperCase() }}</span><strong>{{ fila.usuario }}</strong></td>
+              <td>{{ fila.nombreUsuario }}</td>
+              <td><span class="profile-chip">{{ fila.perfil }}</span></td>
+              <td>{{ fila.nombreLocal }}</td>
+              <td><span class="status-chip" [class.inactive]="fila.estado.toUpperCase() !== 'ACTIVO'"><i></i>{{ fila.estado }}</span></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</section>
+
+@if (modalAbierto()) {
+  <div class="modal-backdrop" (click)="cerrarModal()">
+    <section class="user-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" (click)="$event.stopPropagation()">
+      <header class="modal-header">
+        <div><span class="modal-icon" aria-hidden="true">＋</span><div><h2 id="modal-title">Crear usuario</h2><p>Completa la información para crear un nuevo acceso.</p></div></div>
+        <button class="close-button" type="button" aria-label="Cerrar" [disabled]="guardando()" (click)="cerrarModal()">×</button>
+      </header>
+
+      <form [formGroup]="formulario" (ngSubmit)="guardar()" novalidate>
+        <div class="modal-body">
+          <div class="form-section-title"><span>01</span><div><strong>Datos personales</strong><small>Identificación y contacto del usuario.</small></div></div>
+          <div class="form-grid">
+            <label>Tipo de documento <b>*</b><select formControlName="tipoDocumento" (change)="actualizarValidacionDocumento()"><option value="1">DNI</option><option value="2">Carnet de extranjería</option><option value="3">RUC</option><option value="4">Pasaporte</option></select></label>
+            <label>Número de documento <b>*</b><input formControlName="numeroDocumento" inputmode="numeric" [maxlength]="longitudDocumento()" (input)="filtrarNumeroDocumento($event)" [placeholder]="longitudDocumento() + ' dígitos'"></label>
+            <label>Apellido paterno <b>*</b><input formControlName="apellidoPaterno" autocomplete="family-name"></label>
+            <label>Apellido materno <b>*</b><input formControlName="apellidoMaterno" autocomplete="additional-name"></label>
+            <label>Primer nombre <b>*</b><input formControlName="primerNombre" autocomplete="given-name"></label>
+            <label>Segundo nombre<input formControlName="segundoNombre"></label>
+            <label>Teléfono<input formControlName="telefono" inputmode="tel" maxlength="20"></label>
+            <label>Correo electrónico<input type="email" formControlName="email" autocomplete="email">@if (formulario.controls.email.touched && formulario.controls.email.hasError('email')) {<small class="field-error">Ingresa un correo electrónico válido.</small>}</label>
+          </div>
+
+          <div class="form-section-title access-title"><span>02</span><div><strong>Datos de acceso</strong><small>Define el local, perfil y credenciales.</small></div></div>
+          <div class="form-grid">
+            <fieldset class="local-selection">
+              <legend>Local asignado <b>*</b></legend>
+              @if (cargandoLocales()) { <small class="local-hint">Cargando locales disponibles…</small> }
+              @else if (errorLocales()) { <small class="local-error">{{ errorLocales() }}</small> }
+              @else if (!locales().length) { <small class="local-hint">No hay locales disponibles.</small> }
+              @else {
+                <div class="local-options">
+                  @for (local of locales(); track local.loc_codigo) {
+                    <label class="local-option"><input type="checkbox" [checked]="localSeleccionado(local)" (change)="alternarLocal(local, $event)"><span>{{ local.loc_descripcion }}</span></label>
+                  }
+                </div>
+              }
+              @if (formulario.controls.locales.touched && !formulario.controls.locales.value.length) { <small class="local-error">Selecciona al menos un local.</small> }
+            </fieldset>
+            <label>Código de perfil <b>*</b><select formControlName="perfil"><option value="">Seleccionar perfil</option>@for (perfil of perfiles; track perfil.codigo) {<option [value]="perfil.codigo">{{ perfil.codigo }} - {{ perfil.descripcion }}</option>}</select></label>
+            <label>Tipo de usuario <b>*</b><select formControlName="tipoUsuario"><option value="1">1 - Operativo</option></select></label>
+            <label>Nombre de usuario <b>*</b><input formControlName="usuario" autocomplete="username"></label>
+            <label>Clave inicial <b>*</b><div class="password-control"><input type="text" formControlName="clave" minlength="8" autocomplete="new-password" readonly><button type="button" class="regenerate-button" (click)="generarClave()" [disabled]="guardando()" aria-label="Generar otra clave" title="Generar otra clave">↻</button></div><small>Clave numérica autogenerada de 8 dígitos.</small></label>
+          </div>
+
+          @if (error()) { <p class="feedback error" role="alert">{{ error() }}</p> }
+        </div>
+        <footer class="modal-footer">
+          <button class="cancel-button" type="button" [disabled]="guardando()" (click)="cerrarModal()">Cancelar</button>
+          <button class="submit-button" type="submit" [disabled]="guardando()"><span>{{ guardando() ? 'Guardando…' : 'Crear usuario' }}</span>@if (guardando()) {<i class="button-spinner"></i>}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}

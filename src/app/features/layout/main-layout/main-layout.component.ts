@@ -57,9 +57,13 @@ export class MainLayoutComponent implements OnInit {
     const submenu = this.normalizar(menu.submenu);
     const ruta = (menu.ruta || '').trim();
     const rutaNormalizada = this.normalizar(ruta).replace(/[\\/._-]+/g, ' ');
+    const esControlUsuarios = `${modulo} ${submenu} ${rutaNormalizada}`.includes('usuario');
     const esRegistroSolicitud = (modulo.includes('solicitud') || submenu.includes('solicitud') || rutaNormalizada.includes('solicitud'))
       && (`${submenu} ${rutaNormalizada}`.includes('registr') || `${submenu} ${rutaNormalizada}`.includes('nuevo'));
 
+    if (esControlUsuarios) {
+      return ['/app/usuarios'];
+    }
     if (esRegistroSolicitud) {
       return ['/app/solicitudes/registrar'];
     }
@@ -79,7 +83,9 @@ export class MainLayoutComponent implements OnInit {
   }
 
   tituloPagina(): string {
-    return this.router.url.includes('/solicitudes/registrar') ? 'Registrar solicitud' : 'Dashboard';
+    if (this.router.url.includes('/solicitudes/registrar')) return 'Registrar solicitud';
+    if (this.router.url.includes('/usuarios')) return 'Control de usuarios';
+    return 'Dashboard';
   }
 
   moduloExpandido(codigoModulo: number): boolean {

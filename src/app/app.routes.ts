@@ -26,6 +26,11 @@ export const routes: Routes = [
           { path: '', redirectTo: 'registrar', pathMatch: 'full' }
         ]
       },
+      {
+        path: 'usuarios',
+        loadComponent: () => import('./features/usuarios/control-usuarios/control-usuarios.component')
+          .then(component => component.ControlUsuariosComponent)
+      },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]
   },
